@@ -536,6 +536,13 @@
                                           SelectionMode="Extended"
                                           HeadersVisibility="Column"
                                           RowHeight="34">
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu Background="{DynamicResource ThemeCardBg}" Foreground="{DynamicResource ThemeTextPrimary}" BorderBrush="{DynamicResource ThemeBorder}">
+                                            <MenuItem Header="Remove Duplicate Accounts" Click="MenuRemoveDuplicates_Click"/>
+                                            <Separator Background="{DynamicResource ThemeBorderSubtle}"/>
+                                            <MenuItem Header="Clear Queue" Click="BtnClearList_Click"/>
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
                                     <DataGrid.Resources>
                                         <Style TargetType="DataGridColumnHeader">
                                             <Setter Property="Background" Value="{DynamicResource ThemeDataGridHeaderBg}"/>

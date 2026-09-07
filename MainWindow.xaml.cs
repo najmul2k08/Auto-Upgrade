@@ -231,16 +231,27 @@ public partial class MainWindow : Window
             var extractedTasks = TokenExtractor.ExtractFromString(text, "clipboard");
             if (extractedTasks.Count > 0)
             {
-                lock (_taskLock)
+                var (uniqueTasks, duplicateCount) = TokenExtractor.Deduplicate(extractedTasks, _tasks);
+
+                if (uniqueTasks.Count > 0)
                 {
-                    foreach (var task in extractedTasks)
+                    lock (_taskLock)
                     {
-                        task.Id = _tasks.Count + 1;
-                        _tasks.Add(task);
+                        foreach (var task in uniqueTasks)
+                        {
+                            task.Id = _tasks.Count + 1;
+                            _tasks.Add(task);
+                        }
                     }
+                    string dupMsg = duplicateCount > 0 ? $" ({duplicateCount} duplicate(s) skipped)" : "";
+                    AppendLog($"[CLIPBOARD] Loaded {uniqueTasks.Count} account task(s) from clipboard{dupMsg}.");
+                    UpdateStats();
                 }
-                AppendLog($"[CLIPBOARD] Loaded {extractedTasks.Count} account task(s) from clipboard.");
-                UpdateStats();
+                else if (duplicateCount > 0)
+                {
+                    AppendLog($"[CLIPBOARD] All {duplicateCount} pasted account(s) were duplicates of existing accounts and were skipped.");
+                    MessageBox.Show($"All {duplicateCount} pasted account(s) are duplicates of accounts already in the queue.\nNo duplicate accounts were added.", "Duplicate Accounts Skipped", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             else
             {
@@ -258,41 +269,86 @@ public partial class MainWindow : Window
     {
         try
         {
-            int addedCount = 0;
-
-            foreach (var path in filePaths)
+            var allFilePaths = new List<string>();
+            void CollectFiles(IEnumerable<string> paths)
             {
-                if (File.Exists(path))
+                foreach (var path in paths)
                 {
-                    var extractedTasks = TokenExtractor.ExtractFromFile(path);
-                    if (extractedTasks.Count > 0)
+                    if (File.Exists(path))
                     {
-                        lock (_taskLock)
+                        allFilePaths.Add(path);
+                    }
+                    else if (Directory.Exists(path))
+                    {
+                        try
                         {
-                            foreach (var task in extractedTasks)
-                            {
-                                task.Id = _tasks.Count + 1;
-                                _tasks.Add(task);
-                                addedCount++;
-                            }
+                            var txtFiles = Directory.GetFiles(path, "*.txt", SearchOption.AllDirectories);
+                            CollectFiles(txtFiles);
+                        }
+                        catch (Exception ex)
+                        {
+                            AppendLog($"[WARN] Could not access directory {path}: {ex.Message}");
                         }
                     }
-                    else
-                    {
-                        AppendLog($"[WARN] No GR_TOKEN / GR_REFRESH found in file: {Path.GetFileName(path)}");
-                    }
-                }
-                else if (Directory.Exists(path))
-                {
-                    var txtFiles = Directory.GetFiles(path, "*.txt", SearchOption.AllDirectories);
-                    ProcessDroppedFiles(txtFiles);
                 }
             }
 
-            if (addedCount > 0)
+            CollectFiles(filePaths);
+
+            if (allFilePaths.Count == 0)
             {
-                AppendLog($"[LOAD] Loaded {addedCount} token task(s) into the queue.");
+                AppendLog("[WARN] No valid text files found to load.");
+                return;
+            }
+
+            var allExtractedTasks = new List<AccountTask>();
+            int emptyFileCount = 0;
+
+            foreach (var path in allFilePaths)
+            {
+                var tasks = TokenExtractor.ExtractFromFile(path);
+                if (tasks.Count > 0)
+                {
+                    allExtractedTasks.AddRange(tasks);
+                }
+                else
+                {
+                    emptyFileCount++;
+                }
+            }
+
+            if (emptyFileCount > 0)
+            {
+                AppendLog($"[WARN] {emptyFileCount} file(s) contained no valid GR_TOKEN / GR_REFRESH credentials.");
+            }
+
+            if (allExtractedTasks.Count == 0)
+            {
+                AppendLog("[WARN] No token accounts extracted from selected file(s).");
+                return;
+            }
+
+            var (uniqueTasks, duplicateCount) = TokenExtractor.Deduplicate(allExtractedTasks, _tasks);
+
+            if (uniqueTasks.Count > 0)
+            {
+                lock (_taskLock)
+                {
+                    foreach (var task in uniqueTasks)
+                    {
+                        task.Id = _tasks.Count + 1;
+                        _tasks.Add(task);
+                    }
+                }
+
+                string dupMsg = duplicateCount > 0 ? $" ({duplicateCount} duplicate(s) skipped)" : "";
+                AppendLog($"[LOAD] Loaded {uniqueTasks.Count} token task(s) into the queue{dupMsg}.");
                 UpdateStats();
+            }
+            else if (duplicateCount > 0)
+            {
+                AppendLog($"[LOAD] All {duplicateCount} input task(s) were duplicates of existing accounts and were skipped.");
+                MessageBox.Show($"All {duplicateCount} account(s) are duplicates of accounts already in the queue.\nNo duplicate accounts were added.", "Duplicate Accounts Skipped", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
@@ -459,6 +515,37 @@ public partial class MainWindow : Window
         }
         UpdateStats();
         AppendLog("[QUEUE] Task queue cleared.");
+    }
+
+    private void MenuRemoveDuplicates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_workerEngine.IsRunning)
+        {
+            MessageBox.Show("Please stop the active run before deduplicating tasks.", "Engine Running", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        lock (_taskLock)
+        {
+            var (unique, duplicates) = TokenExtractor.Deduplicate(_tasks);
+            if (duplicates > 0)
+            {
+                _tasks.Clear();
+                for (int i = 0; i < unique.Count; i++)
+                {
+                    unique[i].Id = i + 1;
+                    _tasks.Add(unique[i]);
+                }
+                UpdateStats();
+                AppendLog($"[QUEUE] Removed {duplicates} duplicate account(s) from the queue. ({unique.Count} unique remaining)");
+                MessageBox.Show($"Removed {duplicates} duplicate account(s).\n{unique.Count} unique account(s) remain in the queue.", "Deduplication Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                AppendLog("[QUEUE] Queue checked: all accounts in queue are already unique.");
+                MessageBox.Show("All accounts in the queue are unique. No duplicates found.", "No Duplicates", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
     }
 
     private void BtnExport_Click(object sender, RoutedEventArgs e)

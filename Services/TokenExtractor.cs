@@ -54,21 +54,24 @@ public static class TokenExtractor
         var jsonBlockTasks = ExtractFromJsonArrayBlocks(content, fileName);
         if (jsonBlockTasks.Count > 0)
         {
-            return jsonBlockTasks;
+            var (unique, _) = Deduplicate(jsonBlockTasks);
+            return unique;
         }
 
         // METHOD 2: Regex extraction for JSON object cookies {"name":"GR_TOKEN", "value":"..."}
         var jsonCookieTasks = ExtractFromJsonCookieRegex(content, fileName);
         if (jsonCookieTasks.Count > 0)
         {
-            return jsonCookieTasks;
+            var (unique, _) = Deduplicate(jsonCookieTasks);
+            return unique;
         }
 
         // METHOD 3: Key-Value / Cookie format (GR_TOKEN=xxx; GR_REFRESH=yyy)
         var kvTasks = ExtractFromKeyValue(content, fileName);
         if (kvTasks.Count > 0)
         {
-            return kvTasks;
+            var (unique, _) = Deduplicate(kvTasks);
+            return unique;
         }
 
         return results;
@@ -215,7 +218,7 @@ public static class TokenExtractor
 
                 if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(refresh))
                 {
-                    tasks.Add(CreateTask(token, refresh, fileName));
+                    tasks.Add(CreateTask(token, refresh, fileName, content));
                 }
             }
         }
@@ -241,7 +244,7 @@ public static class TokenExtractor
                 string token = tokenMatches[i].Groups[1].Value.Trim();
                 string refresh = refreshMatches[i].Groups[1].Value.Trim();
 
-                tasks.Add(CreateTask(token, refresh, fileName));
+                tasks.Add(CreateTask(token, refresh, fileName, content));
             }
             return tasks;
         }
@@ -262,7 +265,7 @@ public static class TokenExtractor
 
             if (!string.IsNullOrEmpty(currentToken) && !string.IsNullOrEmpty(currentRefresh))
             {
-                tasks.Add(CreateTask(currentToken, currentRefresh, fileName));
+                tasks.Add(CreateTask(currentToken, currentRefresh, fileName, content));
                 currentToken = null;
                 currentRefresh = null;
             }
@@ -271,7 +274,7 @@ public static class TokenExtractor
         return tasks;
     }
 
-    private static AccountTask CreateTask(string token, string refresh, string fileName)
+    private static AccountTask CreateTask(string token, string refresh, string fileName, string? sourceText = null)
     {
         var task = new AccountTask
         {
@@ -287,8 +290,36 @@ public static class TokenExtractor
             Timestamp = DateTime.Now.ToString("HH:mm:ss")
         };
 
-        // Extract email & user_id from JWT payload
+        // 1. Extract email & user_id from JWT payload
         TryExtractJwtInfo(token, task);
+
+        // 2. Fallback email extraction: check sourceText (e.g. "Email: user@example.com")
+        if ((string.IsNullOrWhiteSpace(task.Email) || !task.Email.Contains('@')) && !string.IsNullOrWhiteSpace(sourceText))
+        {
+            var headerMatch = EmailHeaderRegex.Match(sourceText);
+            if (headerMatch.Success)
+            {
+                task.Email = headerMatch.Groups[1].Value.Trim();
+            }
+            else
+            {
+                var rawEmailMatch = Regex.Match(sourceText, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
+                if (rawEmailMatch.Success)
+                {
+                    task.Email = rawEmailMatch.Value.Trim();
+                }
+            }
+        }
+
+        // 3. Fallback email extraction: check fileName (e.g. "... [user@example.com].txt")
+        if ((string.IsNullOrWhiteSpace(task.Email) || !task.Email.Contains('@')) && !string.IsNullOrWhiteSpace(fileName))
+        {
+            var fileEmailMatch = Regex.Match(fileName, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
+            if (fileEmailMatch.Success)
+            {
+                task.Email = fileEmailMatch.Value.Trim();
+            }
+        }
 
         return task;
     }
@@ -314,15 +345,23 @@ public static class TokenExtractor
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            if (string.IsNullOrEmpty(task.Email))
+            if (string.IsNullOrEmpty(task.Email) || !task.Email.Contains('@'))
             {
-                if (root.TryGetProperty("email", out var emailProp))
+                if (root.TryGetProperty("email", out var emailProp) && emailProp.GetString() is { } em && em.Contains('@'))
                 {
-                    task.Email = emailProp.GetString() ?? "";
+                    task.Email = em.Trim();
                 }
-                else if (root.TryGetProperty("name", out var nameProp))
+                else if (root.TryGetProperty("user_email", out var uEmailProp) && uEmailProp.GetString() is { } uem && uem.Contains('@'))
                 {
-                    task.Email = nameProp.GetString() ?? "";
+                    task.Email = uem.Trim();
+                }
+                else if (root.TryGetProperty("sub_email", out var sEmailProp) && sEmailProp.GetString() is { } sem && sem.Contains('@'))
+                {
+                    task.Email = sem.Trim();
+                }
+                else if (root.TryGetProperty("name", out var nameProp) && nameProp.GetString() is { } nm && nm.Contains('@'))
+                {
+                    task.Email = nm.Trim();
                 }
             }
 
@@ -353,5 +392,85 @@ public static class TokenExtractor
         {
             // Ignore JWT decode failure
         }
+    }
+
+    /// <summary>
+    /// Filters out duplicate tasks. If there are 2 or more inputs with the same email, only the first one is retained.
+    /// Also falls back to UserId or GrToken if email is unavailable.
+    /// </summary>
+    public static (List<AccountTask> UniqueTasks, int DuplicateCount) Deduplicate(
+        IEnumerable<AccountTask> incomingTasks,
+        IEnumerable<AccountTask>? existingTasks = null)
+    {
+        var uniqueTasks = new List<AccountTask>();
+        int duplicateCount = 0;
+
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenTokens = new HashSet<string>(StringComparer.Ordinal);
+
+        if (existingTasks != null)
+        {
+            foreach (var task in existingTasks)
+            {
+                if (!string.IsNullOrWhiteSpace(task.Email))
+                    seenEmails.Add(task.Email.Trim());
+
+                if (!string.IsNullOrWhiteSpace(task.UserId))
+                    seenUserIds.Add(task.UserId.Trim());
+
+                if (!string.IsNullOrWhiteSpace(task.GrToken))
+                    seenTokens.Add(task.GrToken.Trim());
+            }
+        }
+
+        foreach (var task in incomingTasks)
+        {
+            bool isDuplicate = false;
+
+            // 1. Primary rule: if there are 2 inputs with the same email, keep only one
+            if (!string.IsNullOrWhiteSpace(task.Email))
+            {
+                if (seenEmails.Contains(task.Email.Trim()))
+                {
+                    isDuplicate = true;
+                }
+            }
+            // 2. Secondary rule: check by UserId if email is not available
+            else if (!string.IsNullOrWhiteSpace(task.UserId))
+            {
+                if (seenUserIds.Contains(task.UserId.Trim()))
+                {
+                    isDuplicate = true;
+                }
+            }
+            // 3. Tertiary rule: check by Token if email and userId are not available
+            else if (!string.IsNullOrWhiteSpace(task.GrToken))
+            {
+                if (seenTokens.Contains(task.GrToken.Trim()))
+                {
+                    isDuplicate = true;
+                }
+            }
+
+            if (isDuplicate)
+            {
+                duplicateCount++;
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(task.Email))
+                seenEmails.Add(task.Email.Trim());
+
+            if (!string.IsNullOrWhiteSpace(task.UserId))
+                seenUserIds.Add(task.UserId.Trim());
+
+            if (!string.IsNullOrWhiteSpace(task.GrToken))
+                seenTokens.Add(task.GrToken.Trim());
+
+            uniqueTasks.Add(task);
+        }
+
+        return (uniqueTasks, duplicateCount);
     }
 }
