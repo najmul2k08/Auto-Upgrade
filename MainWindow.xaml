@@ -1,0 +1,956 @@
+<Window x:Class="AutoUpgrade.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Magnific Auto Upgrade Suite" Height="840" Width="1340"
+        MinHeight="680" MinWidth="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource ThemeWindowBg}"
+        Foreground="{DynamicResource ThemeTextPrimary}"
+        FontFamily="Segoe UI Variable Display, Segoe UI, Inter, Arial"
+        AllowDrop="True"
+        DragOver="Window_DragOver"
+        Drop="Window_Drop">
+
+    <Window.Resources>
+        <!-- Real SVG Vector Geometries (Lucide / Material style - Zero Emojis) -->
+        <Geometry x:Key="IconRunner">M13 2L3 14h9l-1 8 10-12h-9l1-8z</Geometry>
+        <Geometry x:Key="IconHistory">M18 20V10M12 20V4M6 20v-6M3 20h18</Geometry>
+        <Geometry x:Key="IconSettings">M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z</Geometry>
+        <Geometry x:Key="IconUpload">M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2</Geometry>
+        <Geometry x:Key="IconFolder">M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z</Geometry>
+        <Geometry x:Key="IconClipboard">M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2 M9 2h6a1 1 0 011 1v2a1 1 0 01-1 1H9a1 1 0 01-1-1V3a1 1 0 011-1z</Geometry>
+        <Geometry x:Key="IconPlay">M5 3l14 9-14 9V3z</Geometry>
+        <Geometry x:Key="IconStop">M6 6h12v12H6z</Geometry>
+        <Geometry x:Key="IconTrash">M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2</Geometry>
+        <Geometry x:Key="IconSave">M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5 5 5-5 M12 15V3</Geometry>
+        <Geometry x:Key="IconCheck">M20 6L9 17l-5-5</Geometry>
+        <Geometry x:Key="IconAlert">M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z</Geometry>
+        <Geometry x:Key="IconCross">M18 6L6 18M6 6l12 12</Geometry>
+        <Geometry x:Key="IconSearch">M11 19a8 8 0 100-16 8 8 0 000 16zm10 2l-4.35-4.35</Geometry>
+        <Geometry x:Key="IconExternal">M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6 M15 3h6v6 M10 14L21 3</Geometry>
+        <Geometry x:Key="IconRefresh">M1 4v6h6 M23 20v-6h-6 M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15</Geometry>
+        <Geometry x:Key="IconFileText">M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8</Geometry>
+        <Geometry x:Key="IconSun">M12 3v2m0 14v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M3 12h2m14 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41M16 12a4 4 0 11-8 0 4 4 0 018 0z</Geometry>
+        <Geometry x:Key="IconMoon">M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z</Geometry>
+
+        <!-- Wise Primary Action Button (Signature Lime Pill) -->
+        <Style x:Key="WisePrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ThemeAccent}"/>
+            <Setter Property="Foreground" Value="#0E0F0C"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="20"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ThemeAccentHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ThemeAccentPress}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Wise Secondary Button (Adaptive Soft Pill) -->
+        <Style x:Key="WiseSecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ThemeSecButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSecButtonBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ThemeSecButtonHover}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource ThemeTextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Wise Danger / Stop Button -->
+        <Style x:Key="WiseDangerButton" TargetType="Button" BasedOn="{StaticResource WiseSecondaryButton}">
+            <Setter Property="Background" Value="{DynamicResource ThemeDangerBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ThemeDangerFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeDangerBorder}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ThemeDangerHoverBg}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource ThemeDangerHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Filter Pill Radio Button Style -->
+        <Style x:Key="FilterPillStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="{DynamicResource ThemeCardBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ThemeTextPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccent}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource ThemeTextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource ThemeTextPrimary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Card Style -->
+        <Style x:Key="WiseCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource ThemeCardBg}"/>
+            <Setter Property="CornerRadius" Value="20"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <!-- Top Navigation & Brand Header -->
+            <RowDefinition Height="Auto"/>
+            <!-- Main Content (Tabs) -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================= TOP NAVIGATION BAR ================= -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Brand Logo & Title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Background="{DynamicResource ThemeAccent}" CornerRadius="12" Padding="10,5" Margin="0,0,12,0">
+                    <TextBlock Text="WISE" FontWeight="Black" Foreground="#0E0F0C" FontSize="12"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Magnific Upgrade" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                    <TextBlock Text="Batch Token Engine" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,-1,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Navigation Tabs with Vector Icons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border Background="{DynamicResource ThemeCardBg}" CornerRadius="22" Padding="4" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- Runner Tab -->
+                        <RadioButton x:Name="TabNavRunner" Style="{StaticResource FilterPillStyle}" IsChecked="True" Checked="TabNav_Checked">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="13" Height="13" Margin="0,0,7,0">
+                                    <Path Data="{StaticResource IconRunner}" Fill="{DynamicResource ThemeAccent}"/>
+                                </Viewbox>
+                                <TextBlock Text="Upgrade Runner"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- Results Tab -->
+                        <RadioButton x:Name="TabNavResults" Style="{StaticResource FilterPillStyle}" Checked="TabNav_Checked">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="13" Height="13" Margin="0,0,7,0">
+                                    <Path Data="{StaticResource IconHistory}" Stroke="{DynamicResource ThemeTextSecondary}" StrokeThickness="2"/>
+                                </Viewbox>
+                                <TextBlock Text="Results History"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- Settings Tab -->
+                        <RadioButton x:Name="TabNavSettings" Style="{StaticResource FilterPillStyle}" Margin="0" Checked="TabNav_Checked">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="13" Height="13" Margin="0,0,7,0">
+                                    <Path Data="{StaticResource IconSettings}" Fill="{DynamicResource ThemeTextSecondary}"/>
+                                </Viewbox>
+                                <TextBlock Text="Settings"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Top Header Right Controls (Theme Switcher + Results Pill) -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Theme Toggle Button -->
+                <Button x:Name="BtnToggleTheme" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,8,0" Padding="12,6" Click="BtnToggleTheme_Click">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Viewbox Width="13" Height="13" Margin="0,0,6,0">
+                            <Path x:Name="PathThemeIcon" Data="{StaticResource IconMoon}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        </Viewbox>
+                        <TextBlock x:Name="TxtThemeMode" Text="Dark" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Results Summary Pill -->
+                <Border Style="{StaticResource WiseCard}" Padding="12,6" CornerRadius="16" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                            <Path Data="{StaticResource IconHistory}" Stroke="{DynamicResource ThemeTextMuted}" StrokeThickness="2"/>
+                        </Viewbox>
+                        <TextBlock Text="Saved Results:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="TxtHeaderSavedCount" Text="0" FontSize="12" FontWeight="Black" Foreground="{DynamicResource ThemeStatApprovedFg}"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- ================= TAB CONTENT CONTAINER ================= -->
+        <TabControl Grid.Row="1" x:Name="MainTabControl" BorderThickness="0" Background="Transparent" Padding="0">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+
+            <!-- ================= TAB 1: UPGRADE RUNNER ================= -->
+            <TabItem x:Name="TabRunner">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Top Metric Cards -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Main Runner Area -->
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Metric Cards -->
+                    <UniformGrid Grid.Row="0" Columns="5" Margin="0,0,0,16" Height="68">
+                        <!-- Total -->
+                        <Border Style="{StaticResource WiseCard}" Margin="4,0" Padding="14,10">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="TOTAL QUEUE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                <TextBlock x:Name="TxtStatTotal" Text="0" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Processing -->
+                        <Border Style="{StaticResource WiseCard}" Margin="4,0" Padding="14,10">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="PROCESSING" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                <TextBlock x:Name="TxtStatProcessing" Text="0" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeStatProcessingFg}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Approved -->
+                        <Border Style="{StaticResource WiseCard}" Margin="4,0" Padding="14,10" Background="{DynamicResource ThemeStatApprovedBg}" BorderBrush="{DynamicResource ThemeStatApprovedBorder}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="APPROVED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeStatApprovedFg}"/>
+                                <TextBlock x:Name="TxtStatApproved" Text="0" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeStatApprovedFg}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Declined -->
+                        <Border Style="{StaticResource WiseCard}" Margin="4,0" Padding="14,10" Background="{DynamicResource ThemeStatDeclinedBg}" BorderBrush="{DynamicResource ThemeStatDeclinedBorder}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="DECLINED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeStatDeclinedFg}"/>
+                                <TextBlock x:Name="TxtStatDeclined" Text="0" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeStatDeclinedFg}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Errors -->
+                        <Border Style="{StaticResource WiseCard}" Margin="4,0" Padding="14,10" Background="{DynamicResource ThemeStatErrorsBg}" BorderBrush="{DynamicResource ThemeStatErrorsBorder}">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="ERRORS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeStatErrorsFg}"/>
+                                <TextBlock x:Name="TxtStatErrors" Text="0" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeStatErrorsFg}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Main Runner Split -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="340"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left Control Panel -->
+                        <Border Grid.Column="0" Style="{StaticResource WiseCard}" Padding="16">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Drop Zone & Actions -->
+                                <StackPanel Grid.Row="0">
+                                    <Border x:Name="DropZoneBorder"
+                                            Height="90"
+                                            Background="{DynamicResource ThemeSurfaceSubtle}" CornerRadius="16"
+                                            BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="2"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="DropZone_Click"
+                                            AllowDrop="True"
+                                            DragOver="DropZone_DragOver"
+                                            DragLeave="DropZone_DragLeave"
+                                            Drop="DropZone_Drop">
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <Viewbox Width="20" Height="20" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconUpload}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                            </Viewbox>
+                                            <TextBlock Text="Drop .txt files here" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource ThemeTextPrimary}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Single, multi-account, or folder" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,4,0" Click="BtnBrowseFiles_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                                    <Path Data="{StaticResource IconFolder}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Browse Files"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="1" Style="{StaticResource WiseSecondaryButton}" Margin="4,0,0,0" Click="BtnPasteClipboard_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                                    <Path Data="{StaticResource IconClipboard}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Paste Clipboard"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Proxies Section -->
+                                <Grid Grid.Row="1" Margin="0,14,0,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                        <TextBlock Text="Proxies (host:port:user:pass)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextPrimary}" VerticalAlignment="Center"/>
+                                        <Border Background="{DynamicResource ThemeStatApprovedBg}" BorderBrush="{DynamicResource ThemeStatApprovedBorder}" BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Right">
+                                            <TextBlock x:Name="TxtProxyCount" Text="0 Loaded" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeStatApprovedFg}"/>
+                                        </Border>
+                                    </DockPanel>
+
+                                    <TextBox Grid.Row="1" x:Name="TxtProxies"
+                                             Background="{DynamicResource ThemeInputBg}" Foreground="{DynamicResource ThemeInputText}"
+                                             BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1"
+                                             AcceptsReturn="True" TextWrapping="NoWrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Auto"
+                                             FontFamily="Cascadia Code, Consolas" FontSize="11" Padding="8"
+                                             TextChanged="TxtProxies_TextChanged"/>
+
+                                    <Grid Grid.Row="2" Margin="0,6,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="Load File" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,4,0" Click="BtnLoadProxies_Click"/>
+                                        <Button Grid.Column="1" Content="Clear" Style="{StaticResource WiseSecondaryButton}" Margin="4,0,0,0" Click="BtnClearProxies_Click"/>
+                                    </Grid>
+                                </Grid>
+
+                                <!-- Concurrency & Actions -->
+                                <StackPanel Grid.Row="2">
+                                    <Separator Background="{DynamicResource ThemeBorderSubtle}" Margin="0,0,0,10"/>
+
+                                    <DockPanel Margin="0,0,0,6">
+                                        <TextBlock Text="Concurrency / Threads" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock x:Name="TxtThreadCount" Text="5 Threads" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeTextPrimary}" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <Slider x:Name="SliderThreads" Minimum="1" Maximum="50" Value="5" SmallChange="1" LargeChange="5" IsSnapToTickEnabled="True" TickFrequency="1" Margin="0,0,0,14" ValueChanged="SliderThreads_ValueChanged"/>
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="2*"/>
+                                            <ColumnDefinition Width="1*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" x:Name="BtnStart" Style="{StaticResource WisePrimaryButton}" Margin="0,0,4,0" Click="BtnStart_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                                    <Path Data="{StaticResource IconPlay}" Fill="#0E0F0C"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Start Upgrading"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="1" x:Name="BtnStop" Style="{StaticResource WiseDangerButton}" Margin="4,0,0,0" IsEnabled="False" Click="BtnStop_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="10" Height="10" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconStop}" Fill="{DynamicResource ThemeDangerFg}"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Stop"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,4,0" Click="BtnClearList_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Clear Queue"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="1" Style="{StaticResource WiseSecondaryButton}" Margin="4,0,0,0" Click="BtnExport_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconSave}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Export Run"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Right Panel: Tasks DataGrid & Console -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="3*"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="1*" MinHeight="110"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Style="{StaticResource WiseCard}" Padding="8">
+                                <DataGrid x:Name="DgTasks"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          IsReadOnly="True"
+                                          GridLinesVisibility="Horizontal"
+                                          HorizontalGridLinesBrush="{DynamicResource ThemeBorderSubtle}"
+                                          Background="{DynamicResource ThemeCardBg}"
+                                          RowBackground="{DynamicResource ThemeCardBg}"
+                                          AlternatingRowBackground="{DynamicResource ThemeDataGridRowAlt}"
+                                          Foreground="{DynamicResource ThemeTextPrimary}"
+                                          BorderThickness="0"
+                                          SelectionMode="Extended"
+                                          HeadersVisibility="Column"
+                                          RowHeight="34">
+                                    <DataGrid.Resources>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="{DynamicResource ThemeDataGridHeaderBg}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="FontSize" Value="11"/>
+                                            <Setter Property="Padding" Value="10,8"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderSubtle}"/>
+                                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                        </Style>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Padding" Value="8,0"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="DataGridCell">
+                                                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                                                            <ContentPresenter VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource ThemeDataGridSelected}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource ThemeDataGridSelectedFg}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.Resources>
+
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Id}" Width="45"/>
+
+                                        <DataGridTemplateColumn Header="STATUS" Width="145">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{Binding StatusBrush}"
+                                                            CornerRadius="12" Padding="9,3" HorizontalAlignment="Left">
+                                                        <TextBlock Text="{Binding Status}" FontWeight="Bold" FontSize="11"
+                                                                   Foreground="{Binding StatusForegroundBrush}"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTextColumn Header="ACCOUNT / EMAIL" Binding="{Binding Email}" Width="165"/>
+                                        <DataGridTextColumn Header="CUSTOMER ID" Binding="{Binding UserId}" Width="115"/>
+                                        <DataGridTextColumn Header="PURCHASE ID" Binding="{Binding PurchaseId}" Width="120"/>
+                                        <DataGridTextColumn Header="PRICE ID" Binding="{Binding PriceId}" Width="120"/>
+                                        <DataGridTextColumn Header="DETAILS / MESSAGE" Binding="{Binding Message}" Width="*"/>
+                                        <DataGridTextColumn Header="PROXY" Binding="{Binding ProxyUsed}" Width="120"/>
+                                        <DataGridTextColumn Header="TIME" Binding="{Binding Timestamp}" Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+
+                            <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"/>
+
+                            <!-- Polarity Flipped Console -->
+                            <Border Grid.Row="2" Background="#0B0C0A" CornerRadius="20" Padding="12" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <DockPanel Grid.Row="0" Margin="4,0,4,6">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Background="{DynamicResource ThemeAccent}" CornerRadius="4" Width="8" Height="8" Margin="0,0,8,0"/>
+                                            <TextBlock Text="Live Activity Log" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}"/>
+                                        </StackPanel>
+                                        <Button Content="Clear Log" Style="{StaticResource WiseSecondaryButton}" HorizontalAlignment="Right" Padding="10,3" FontSize="10" Background="#163300" Foreground="#CDFFAD" BorderBrush="{DynamicResource ThemeAccent}" Click="BtnClearLog_Click"/>
+                                    </DockPanel>
+
+                                    <TextBox Grid.Row="1" x:Name="TxtConsole"
+                                             Background="Transparent" Foreground="#E8EBE6"
+                                             BorderThickness="0"
+                                             IsReadOnly="True"
+                                             AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Auto"
+                                             FontFamily="Cascadia Code, Consolas" FontSize="11"
+                                             TextWrapping="NoWrap"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ================= TAB 2: RESULTS HISTORY ================= -->
+            <TabItem x:Name="TabResults">
+                <Border Style="{StaticResource WiseCard}" Padding="20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <!-- Results Header & Summary -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Filter & Search Bar -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Results DataGrid -->
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header & Summary Cards -->
+                        <Grid Grid.Row="0" Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="Saved Results History" FontSize="20" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                <TextBlock Text="All upgraded accounts and transactions are automatically archived here." FontSize="12" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <!-- Stat Pills -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Border Background="{DynamicResource ThemeSurfaceSubtle}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Total: " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                        <TextBlock x:Name="TxtResTotal" Text="0" FontSize="12" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource ThemeStatApprovedBg}" BorderBrush="{DynamicResource ThemeStatApprovedBorder}" BorderThickness="1" CornerRadius="14" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Approved: " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ThemeStatApprovedFg}"/>
+                                        <TextBlock x:Name="TxtResApproved" Text="0" FontSize="12" FontWeight="Black" Foreground="{DynamicResource ThemeStatApprovedFg}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource ThemeStatDeclinedBg}" BorderBrush="{DynamicResource ThemeStatDeclinedBorder}" BorderThickness="1" CornerRadius="14" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Declined: " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ThemeStatDeclinedFg}"/>
+                                        <TextBlock x:Name="TxtResDeclined" Text="0" FontSize="12" FontWeight="Black" Foreground="{DynamicResource ThemeStatDeclinedFg}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource ThemeStatErrorsBg}" BorderBrush="{DynamicResource ThemeStatErrorsBorder}" BorderThickness="1" CornerRadius="14" Padding="12,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Errors: " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ThemeStatErrorsFg}"/>
+                                        <TextBlock x:Name="TxtResErrors" Text="0" FontSize="12" FontWeight="Black" Foreground="{DynamicResource ThemeStatErrorsFg}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Filter, Search & Export Bar -->
+                        <Grid Grid.Row="1" Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Status Filter Pills with Vector Icons -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <RadioButton x:Name="FilterAll" Content="All Results" Style="{StaticResource FilterPillStyle}" IsChecked="True" Checked="FilterResults_Changed"/>
+                                <RadioButton x:Name="FilterApproved" Style="{StaticResource FilterPillStyle}" Checked="FilterResults_Changed">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconCheck}" Stroke="{DynamicResource ThemeStatApprovedFg}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Approved"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="FilterDeclined" Style="{StaticResource FilterPillStyle}" Checked="FilterResults_Changed">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconAlert}" Stroke="{DynamicResource ThemeStatDeclinedFg}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Declined"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="FilterErrors" Style="{StaticResource FilterPillStyle}" Checked="FilterResults_Changed">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconCross}" Stroke="{DynamicResource ThemeStatErrorsFg}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Errors"/>
+                                    </StackPanel>
+                                </RadioButton>
+                            </StackPanel>
+
+                            <!-- Search Box -->
+                            <Border Grid.Column="1" Background="{DynamicResource ThemeInputBg}" CornerRadius="14" BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1" Margin="10,0,16,0" Padding="8,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Viewbox Grid.Column="0" Width="13" Height="13" Margin="4,0,8,0" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconSearch}" Stroke="{DynamicResource ThemeTextMuted}" StrokeThickness="2"/>
+                                    </Viewbox>
+                                    <TextBox Grid.Column="1" x:Name="TxtSearchResults" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource ThemeInputText}" FontSize="12" VerticalAlignment="Center" TextChanged="TxtSearchResults_TextChanged"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Export & Action Buttons with Vector Icons -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Style="{StaticResource WiseSecondaryButton}" Margin="0,0,6,0" Click="BtnExportCsv_Click">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="12" Height="12" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconSave}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Export CSV"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource WiseSecondaryButton}" Margin="0,0,6,0" Click="BtnExportTxt_Click">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="12" Height="12" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconFileText}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Export TXT"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource WiseSecondaryButton}" Margin="0,0,6,0" Click="BtnOpenFolder_Click">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="12" Height="12" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconExternal}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Open Folder"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource WiseDangerButton}" Click="BtnClearHistory_Click">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                            <Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource ThemeDangerFg}" StrokeThickness="2"/>
+                                        </Viewbox>
+                                        <TextBlock Text="Clear All"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Results DataGrid -->
+                        <DataGrid Grid.Row="2" x:Name="DgResults"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  IsReadOnly="True"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="{DynamicResource ThemeBorderSubtle}"
+                                  Background="{DynamicResource ThemeCardBg}"
+                                  RowBackground="{DynamicResource ThemeCardBg}"
+                                  AlternatingRowBackground="{DynamicResource ThemeDataGridRowAlt}"
+                                  Foreground="{DynamicResource ThemeTextPrimary}"
+                                  BorderThickness="1"
+                                  BorderBrush="{DynamicResource ThemeBorder}"
+                                  SelectionMode="Extended"
+                                  HeadersVisibility="Column"
+                                  RowHeight="34">
+                            <DataGrid.Resources>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="{DynamicResource ThemeDataGridHeaderBg}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource ThemeTextSecondary}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="FontSize" Value="11"/>
+                                    <Setter Property="Padding" Value="10,8"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderSubtle}"/>
+                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                </Style>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Padding" Value="8,0"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="DataGridCell">
+                                                <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ThemeDataGridSelected}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource ThemeDataGridSelectedFg}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.Resources>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Id}" Width="45"/>
+                                <DataGridTextColumn Header="COMPLETED AT" Binding="{Binding CompletedAt}" Width="140"/>
+
+                                <DataGridTemplateColumn Header="STATUS" Width="145">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding StatusBrush}"
+                                                    CornerRadius="12" Padding="9,3" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Status}" FontWeight="Bold" FontSize="11"
+                                                           Foreground="{Binding StatusForegroundBrush}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTextColumn Header="EMAIL" Binding="{Binding Email}" Width="165"/>
+                                <DataGridTextColumn Header="CUSTOMER ID" Binding="{Binding UserId}" Width="115"/>
+                                <DataGridTextColumn Header="PURCHASE ID" Binding="{Binding PurchaseId}" Width="120"/>
+                                <DataGridTextColumn Header="PRICE ID" Binding="{Binding PriceId}" Width="120"/>
+                                <DataGridTextColumn Header="DETAILS / MESSAGE" Binding="{Binding Message}" Width="*"/>
+                                <DataGridTextColumn Header="PROXY" Binding="{Binding ProxyUsed}" Width="120"/>
+                                <DataGridTextColumn Header="SOURCE FILE" Binding="{Binding FileName}" Width="120"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- ================= TAB 3: SETTINGS ================= -->
+            <TabItem x:Name="TabSettings">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+
+                        <!-- Concurrency Card -->
+                        <Border Style="{StaticResource WiseCard}" Padding="24" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,8,0">
+                                        <Path Data="{StaticResource IconRunner}" Fill="{DynamicResource ThemeTextPrimary}"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Performance &amp; Network Engine" FontSize="16" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                </StackPanel>
+                                <TextBlock Text="Tune concurrency, timeouts, and request parameters." FontSize="12" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,0,0,18"/>
+
+                                <!-- Concurrency -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="80"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Default Concurrency Threads" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock Text="Number of parallel workers" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                    </StackPanel>
+                                    <Slider Grid.Column="1" x:Name="SettingSliderThreads" Minimum="1" Maximum="50" Value="5" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="10,0" ValueChanged="SettingSliderThreads_ValueChanged"/>
+                                    <TextBlock Grid.Column="2" x:Name="TxtSettingThreads" Text="5" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                </Grid>
+
+                                <!-- Timeout -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Request Timeout (seconds)" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock Text="Maximum wait per HTTP request" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" x:Name="TxtSettingTimeout" Text="35" Width="100" HorizontalAlignment="Left" Background="{DynamicResource ThemeInputBg}" Foreground="{DynamicResource ThemeInputText}" BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1" Padding="8,5" FontWeight="SemiBold"/>
+                                </Grid>
+
+                                <!-- User-Agent -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Browser User-Agent" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock Text="Header sent with API requests" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" x:Name="TxtSettingUserAgent" Background="{DynamicResource ThemeInputBg}" Foreground="{DynamicResource ThemeInputText}" BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1" Padding="8,5" FontFamily="Cascadia Code, Consolas" FontSize="11"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Storage & Auto-Save Card -->
+                        <Border Style="{StaticResource WiseCard}" Padding="24" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,8,0">
+                                        <Path Data="{StaticResource IconSave}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Auto-Save &amp; Output Storage" FontSize="16" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                </StackPanel>
+                                <TextBlock Text="Configure how completed accounts are saved and archived." FontSize="12" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,0,0,18"/>
+
+                                <CheckBox x:Name="ChkAutoSave" Content="Automatically save completed accounts to daily text logs (approved_YYYY-MM-DD.txt, etc.)" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}" Margin="0,0,0,14" IsChecked="True"/>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Results Output Folder" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock Text="Where files and history are stored" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" x:Name="TxtSettingSaveDir" Background="{DynamicResource ThemeInputBg}" Foreground="{DynamicResource ThemeInputText}" BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1" Padding="8,5" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Button Grid.Column="2" Content="Browse..." Style="{StaticResource WiseSecondaryButton}" Click="BtnBrowseSaveDir_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Experience Card -->
+                        <Border Style="{StaticResource WiseCard}" Padding="24" Margin="0,0,0,20">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,8,0">
+                                        <Path Data="{StaticResource IconSettings}" Fill="{DynamicResource ThemeTextPrimary}"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Interface &amp; Experience" FontSize="16" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                </StackPanel>
+                                <TextBlock Text="Visual preferences, theme appearance, and console behaviors." FontSize="12" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,0,0,18"/>
+
+                                <!-- Theme Mode Option in Settings -->
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Theme Appearance" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock Text="Switch between light and midnight dark mode" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton x:Name="RadioThemeLight" Content="Light Mode" Style="{StaticResource FilterPillStyle}" Margin="0,0,8,0" Checked="RadioTheme_Checked"/>
+                                        <RadioButton x:Name="RadioThemeDark" Content="Dark Mode" Style="{StaticResource FilterPillStyle}" Margin="0" Checked="RadioTheme_Checked"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <CheckBox x:Name="ChkAutoScrollLog" Content="Auto-scroll execution activity log to bottom" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}" IsChecked="True"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Save & Reset Action Bar -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
+                            <Button Style="{StaticResource WisePrimaryButton}" Click="BtnSaveSettings_Click" Margin="0,0,10,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                        <Path Data="{StaticResource IconCheck}" Stroke="#0E0F0C" StrokeThickness="2.5"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Save Settings"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource WiseSecondaryButton}" Click="BtnResetSettings_Click" Margin="0,0,14,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Viewbox Width="12" Height="12" Margin="0,0,6,0">
+                                        <Path Data="{StaticResource IconRefresh}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Reset to Defaults"/>
+                                </StackPanel>
+                            </Button>
+                            <TextBlock x:Name="TxtSettingsStatus" Text="" Foreground="{DynamicResource ThemeStatApprovedFg}" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
