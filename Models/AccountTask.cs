@@ -20,6 +20,9 @@ public class AccountTask : INotifyPropertyChanged
     private string _grToken = string.Empty;
     private string _grRefresh = string.Empty;
     private string _email = string.Empty;
+    private string _plan = "-";
+    private string _subscription = "-";
+    private string _availableCredits = "-";
     private string _userId = string.Empty;
     private string _purchaseId = string.Empty;
     private string _priceId = string.Empty;
@@ -57,6 +60,24 @@ public class AccountTask : INotifyPropertyChanged
     {
         get => _email;
         set => SetField(ref _email, value);
+    }
+
+    public string Plan
+    {
+        get => _plan;
+        set => SetField(ref _plan, value);
+    }
+
+    public string Subscription
+    {
+        get => _subscription;
+        set => SetField(ref _subscription, value);
+    }
+
+    public string AvailableCredits
+    {
+        get => _availableCredits;
+        set => SetField(ref _availableCredits, value);
     }
 
     public string UserId

@@ -16,6 +16,9 @@ public class MagnificApiClient
     private const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
     private static readonly Regex PurchaseIdRegex = new(@"[""']?purchaseId[""']?\s*:\s*[""']([^""']+)[""']", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex PriceIdRegex = new(@"[""']?priceId[""']?\s*:\s*[""']([^""']+)[""']", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex PlanRegex = new(@"[""']productNameFriendly[""']\s*:\s*[""']([^""']+)[""']", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex FrequencyRegex = new(@"[""']frequency[""']\s*:\s*[""']([^""']+)[""']", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex CreditsRegex = new(@"[""']totalCreditsAvailable[""']\s*:\s*([0-9]+|[""'][^""']+[""'])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static async Task ExecuteUpgradeAsync(AccountTask task, ProxyItem? proxy, Action<string> log, CancellationToken cancellationToken)
     {
@@ -104,6 +107,9 @@ public class MagnificApiClient
 
                 log($"[{task.Id}] Got user_id: {task.UserId}");
             }
+
+            // Capture initial wallet info (Plan, Subscription, Credits)
+            await FetchWalletInfoAsync(client, task, cookieHeader, log, cancellationToken);
 
             // -------------------------------------------------------------
             // STEP 2: GET https://www.magnific.com/user/api/my-subscriptions
@@ -257,7 +263,7 @@ public class MagnificApiClient
                     task.Status = "Payment Declined";
                     task.StatusType = TaskStatusType.Declined;
                     task.Message = "PAYMENT_DECLINED";
-                    log($"[{task.Id}] ⚠️ Status: Payment Declined for {task.Email ?? task.UserId}");
+                    log($"[{task.Id}] [DECLINED] Status: Payment Declined for {task.Email ?? task.UserId}");
                     break;
                 }
                 else if (res4.IsSuccessStatusCode || statusCode4 == 204 || statusCode4 == 200)
@@ -265,7 +271,10 @@ public class MagnificApiClient
                     task.Status = "Payment Approved";
                     task.StatusType = TaskStatusType.Approved;
                     task.Message = $"Purchase successful (HTTP {statusCode4})";
-                    log($"[{task.Id}] ✅ Status: Payment Approved for {task.Email ?? task.UserId}!");
+                    log($"[{task.Id}] [APPROVED] Status: Payment Approved for {task.Email ?? task.UserId}!");
+
+                    // Refresh wallet info to capture updated plan & credits after upgrade
+                    await FetchWalletInfoAsync(client, task, cookieHeader, log, cancellationToken);
                     break;
                 }
                 else
@@ -273,7 +282,7 @@ public class MagnificApiClient
                     task.Status = $"Error: HTTP {statusCode4}";
                     task.StatusType = TaskStatusType.Error;
                     task.Message = TrimSnippet(body4);
-                    log($"[{task.Id}] ❌ Unexpected response HTTP {statusCode4}: {TrimSnippet(body4)}");
+                    log($"[{task.Id}] [ERROR] Unexpected response HTTP {statusCode4}: {TrimSnippet(body4)}");
                     break;
                 }
             }
@@ -283,18 +292,214 @@ public class MagnificApiClient
             task.Status = "Cancelled";
             task.StatusType = TaskStatusType.Pending;
             task.Message = "Task was cancelled by user.";
-            log($"[{task.Id}] ⏹️ Task cancelled.");
+            log($"[{task.Id}] [CANCEL] Task cancelled.");
         }
         catch (Exception ex)
         {
             task.Status = "Connection Error";
             task.StatusType = TaskStatusType.Error;
             task.Message = ex.Message;
-            log($"[{task.Id}] ❌ Exception: {ex.Message}");
+            log($"[{task.Id}] [ERROR] Exception: {ex.Message}");
         }
         finally
         {
             task.Timestamp = DateTime.Now.ToString("HH:mm:ss");
+        }
+    }
+
+    public static async Task FetchWalletInfoAsync(HttpClient client, AccountTask task, string cookieHeader, Action<string> log, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(task.UserId)) return;
+
+        try
+        {
+            string url = $"https://www.magnific.com/api/user/wallet/{task.UserId}";
+            string? responseBody = null;
+
+            // Attempt 1: As configured with Host: www.freepik.com
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Host = "www.freepik.com";
+                req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+                req.Headers.TryAddWithoutValidation("Accept", "*/*");
+                req.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.5");
+                req.Headers.TryAddWithoutValidation("Referer", "https://www.freepik.com/?log-in=email");
+                req.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+                req.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+                req.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+                req.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
+
+                using var res = await client.SendAsync(req, cancellationToken);
+                if (res.IsSuccessStatusCode)
+                {
+                    responseBody = await res.Content.ReadAsStringAsync(cancellationToken);
+                }
+            }
+            catch
+            {
+                // Fallback will be attempted
+            }
+
+            // Attempt 2: Fallback to www.magnific.com host
+            if (string.IsNullOrEmpty(responseBody))
+            {
+                try
+                {
+                    using var req2 = new HttpRequestMessage(HttpMethod.Get, url);
+                    req2.Headers.Host = "www.magnific.com";
+                    req2.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+                    req2.Headers.TryAddWithoutValidation("Accept", "*/*");
+                    req2.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.5");
+                    req2.Headers.TryAddWithoutValidation("Referer", "https://www.magnific.com/user/my-subscriptions");
+                    req2.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+                    req2.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+                    req2.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+                    req2.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
+
+                    using var res2 = await client.SendAsync(req2, cancellationToken);
+                    if (res2.IsSuccessStatusCode)
+                    {
+                        responseBody = await res2.Content.ReadAsStringAsync(cancellationToken);
+                    }
+                }
+                catch
+                {
+                    // Fallback will be attempted
+                }
+            }
+
+            // Attempt 3: Direct freepik.com endpoint fallback
+            if (string.IsNullOrEmpty(responseBody))
+            {
+                try
+                {
+                    string fpUrl = $"https://www.freepik.com/api/user/wallet/{task.UserId}";
+                    using var req3 = new HttpRequestMessage(HttpMethod.Get, fpUrl);
+                    req3.Headers.Host = "www.freepik.com";
+                    req3.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+                    req3.Headers.TryAddWithoutValidation("Accept", "*/*");
+                    req3.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.5");
+                    req3.Headers.TryAddWithoutValidation("Referer", "https://www.freepik.com/?log-in=email");
+                    req3.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+                    req3.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+                    req3.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+                    req3.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
+
+                    using var res3 = await client.SendAsync(req3, cancellationToken);
+                    if (res3.IsSuccessStatusCode)
+                    {
+                        responseBody = await res3.Content.ReadAsStringAsync(cancellationToken);
+                    }
+                }
+                catch
+                {
+                    // Ignore
+                }
+            }
+
+            if (!string.IsNullOrEmpty(responseBody))
+            {
+                ParseWalletResponse(responseBody, task, log);
+            }
+        }
+        catch (Exception ex)
+        {
+            log($"[{task.Id}] Notice: Wallet lookup encountered error: {ex.Message}");
+        }
+    }
+
+    private static void ParseWalletResponse(string responseBody, AccountTask task, Action<string> log)
+    {
+        try
+        {
+            bool capturedAny = false;
+
+            // 1. Plan: productNameFriendly
+            var mPlan = PlanRegex.Match(responseBody);
+            if (mPlan.Success && !string.IsNullOrWhiteSpace(mPlan.Groups[1].Value))
+            {
+                task.Plan = mPlan.Groups[1].Value.Trim();
+                capturedAny = true;
+            }
+
+            // 2. Subscription: frequency
+            var mFreq = FrequencyRegex.Match(responseBody);
+            if (mFreq.Success && !string.IsNullOrWhiteSpace(mFreq.Groups[1].Value))
+            {
+                task.Subscription = mFreq.Groups[1].Value.Trim();
+                capturedAny = true;
+            }
+
+            // 3. AvailableCredits: totalCreditsAvailable
+            var mCredits = CreditsRegex.Match(responseBody);
+            if (mCredits.Success && !string.IsNullOrWhiteSpace(mCredits.Groups[1].Value))
+            {
+                task.AvailableCredits = mCredits.Groups[1].Value.Trim('"', '\'').Trim();
+                capturedAny = true;
+            }
+
+            // Deep JSON search fallback
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+                ExtractWalletProperties(doc.RootElement, task, ref capturedAny);
+            }
+            catch
+            {
+                // Fallback regex already processed
+            }
+
+            if (capturedAny)
+            {
+                log($"[{task.Id}] [WALLET] Plan: {task.Plan} | Subscription: {task.Subscription} | Credits: {task.AvailableCredits}");
+            }
+        }
+        catch (Exception ex)
+        {
+            log($"[{task.Id}] Error parsing wallet data: {ex.Message}");
+        }
+    }
+
+    private static void ExtractWalletProperties(System.Text.Json.JsonElement element, AccountTask task, ref bool capturedAny)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            foreach (var prop in element.EnumerateObject())
+            {
+                if ((task.Plan == "-" || string.IsNullOrEmpty(task.Plan)) && string.Equals(prop.Name, "productNameFriendly", StringComparison.OrdinalIgnoreCase))
+                {
+                    task.Plan = prop.Value.GetString() ?? task.Plan;
+                    capturedAny = true;
+                }
+                else if ((task.Subscription == "-" || string.IsNullOrEmpty(task.Subscription)) && string.Equals(prop.Name, "frequency", StringComparison.OrdinalIgnoreCase))
+                {
+                    task.Subscription = prop.Value.GetString() ?? task.Subscription;
+                    capturedAny = true;
+                }
+                else if ((task.AvailableCredits == "-" || string.IsNullOrEmpty(task.AvailableCredits)) && string.Equals(prop.Name, "totalCreditsAvailable", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        task.AvailableCredits = prop.Value.GetInt64().ToString();
+                        capturedAny = true;
+                    }
+                    else if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        task.AvailableCredits = prop.Value.GetString() ?? task.AvailableCredits;
+                        capturedAny = true;
+                    }
+                }
+
+                ExtractWalletProperties(prop.Value, task, ref capturedAny);
+            }
+        }
+        else if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                ExtractWalletProperties(item, task, ref capturedAny);
+            }
         }
     }
 

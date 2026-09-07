@@ -483,10 +483,10 @@ public partial class MainWindow : Window
 
             if (isCsv)
             {
-                sb.AppendLine("ID,Status,Email,UserId,PurchaseId,PriceId,Message,Proxy,Timestamp");
+                sb.AppendLine("ID,Status,Email,Plan,Subscription,AvailableCredits,UserId,PurchaseId,PriceId,Message,Proxy,Timestamp");
                 foreach (var t in _tasks)
                 {
-                    sb.AppendLine($"\"{t.Id}\",\"{t.Status}\",\"{t.Email}\",\"{t.UserId}\",\"{t.PurchaseId}\",\"{t.PriceId}\",\"{t.Message.Replace("\"", "\"\"")}\",\"{t.ProxyUsed}\",\"{t.Timestamp}\"");
+                    sb.AppendLine($"\"{t.Id}\",\"{t.Status}\",\"{t.Email}\",\"{t.Plan}\",\"{t.Subscription}\",\"{t.AvailableCredits}\",\"{t.UserId}\",\"{t.PurchaseId}\",\"{t.PriceId}\",\"{t.Message.Replace("\"", "\"\"")}\",\"{t.ProxyUsed}\",\"{t.Timestamp}\"");
                 }
             }
             else
@@ -497,7 +497,7 @@ public partial class MainWindow : Window
 
                 foreach (var t in _tasks)
                 {
-                    sb.AppendLine($"[{t.Status.ToUpper()}] #{t.Id} | Email: {t.Email} | CustomerID: {t.UserId}");
+                    sb.AppendLine($"[{t.Status.ToUpper()}] #{t.Id} | Email: {t.Email} | Plan: {t.Plan} | Sub: {t.Subscription} | Credits: {t.AvailableCredits} | CustomerID: {t.UserId}");
                     sb.AppendLine($"PurchaseID: {t.PurchaseId} | PriceID: {t.PriceId}");
                     sb.AppendLine($"Details: {t.Message} | Time: {t.Timestamp}");
                     sb.AppendLine(new string('-', 70));
@@ -594,6 +594,9 @@ public partial class MainWindow : Window
             {
                 query = query.Where(r =>
                     (r.Email != null && r.Email.ToLowerInvariant().Contains(search)) ||
+                    (r.Plan != null && r.Plan.ToLowerInvariant().Contains(search)) ||
+                    (r.Subscription != null && r.Subscription.ToLowerInvariant().Contains(search)) ||
+                    (r.AvailableCredits != null && r.AvailableCredits.ToLowerInvariant().Contains(search)) ||
                     (r.UserId != null && r.UserId.ToLowerInvariant().Contains(search)) ||
                     (r.PurchaseId != null && r.PurchaseId.ToLowerInvariant().Contains(search)) ||
                     (r.PriceId != null && r.PriceId.ToLowerInvariant().Contains(search)) ||

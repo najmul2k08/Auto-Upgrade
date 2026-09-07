@@ -122,11 +122,11 @@ public static class TokenExtractor
 
                     if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(refresh))
                     {
-                        var task = CreateTask(token, refresh, fileName);
-
-                        // Look backwards in content for "Email: ..." header
-                        int lookbackStart = Math.Max(0, arrayStart - 300);
+                        // Look backwards in content for "Email: ...", "Plan: ...", "Subscription: ..."
+                        int lookbackStart = Math.Max(0, arrayStart - 500);
                         string priorText = content.Substring(lookbackStart, arrayStart - lookbackStart);
+                        var task = CreateTask(token, refresh, fileName, priorText);
+
                         var emailMatch = EmailHeaderRegex.Match(priorText);
                         if (emailMatch.Success)
                         {
@@ -215,7 +215,7 @@ public static class TokenExtractor
 
                 if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(refresh))
                 {
-                    tasks.Add(CreateTask(token, refresh, fileName));
+                    tasks.Add(CreateTask(token, refresh, fileName, content));
                 }
             }
         }
@@ -241,7 +241,7 @@ public static class TokenExtractor
                 string token = tokenMatches[i].Groups[1].Value.Trim();
                 string refresh = refreshMatches[i].Groups[1].Value.Trim();
 
-                tasks.Add(CreateTask(token, refresh, fileName));
+                tasks.Add(CreateTask(token, refresh, fileName, content));
             }
             return tasks;
         }
@@ -262,7 +262,7 @@ public static class TokenExtractor
 
             if (!string.IsNullOrEmpty(currentToken) && !string.IsNullOrEmpty(currentRefresh))
             {
-                tasks.Add(CreateTask(currentToken, currentRefresh, fileName));
+                tasks.Add(CreateTask(currentToken, currentRefresh, fileName, content));
                 currentToken = null;
                 currentRefresh = null;
             }
@@ -271,7 +271,7 @@ public static class TokenExtractor
         return tasks;
     }
 
-    private static AccountTask CreateTask(string token, string refresh, string fileName)
+    private static AccountTask CreateTask(string token, string refresh, string fileName, string? priorText = null)
     {
         var task = new AccountTask
         {
@@ -286,6 +286,32 @@ public static class TokenExtractor
 
         // Extract email & user_id from JWT payload
         TryExtractJwtInfo(token, task);
+
+        // Pre-extract metadata from fileName (e.g. Credits_Left[198] [Premium])
+        if (!string.IsNullOrEmpty(fileName))
+        {
+            var creditsMatch = Regex.Match(fileName, @"Credits_Left\[(\d+)\]", RegexOptions.IgnoreCase);
+            if (creditsMatch.Success) task.AvailableCredits = creditsMatch.Groups[1].Value;
+
+            var planMatch = Regex.Match(fileName, @"\[(Premium|Free|Basic|Pro|Enterprise|Magnific)\]", RegexOptions.IgnoreCase);
+            if (planMatch.Success) task.Plan = planMatch.Groups[1].Value;
+        }
+
+        // Pre-extract metadata from priorText or text snippet if available
+        if (!string.IsNullOrEmpty(priorText))
+        {
+            var planMatch = Regex.Match(priorText, @"Plan:\s*([^\r\n\t]+)", RegexOptions.IgnoreCase);
+            if (planMatch.Success && !string.IsNullOrWhiteSpace(planMatch.Groups[1].Value))
+                task.Plan = planMatch.Groups[1].Value.Trim();
+
+            var subMatch = Regex.Match(priorText, @"Subscription:\s*([^\r\n\t]+)", RegexOptions.IgnoreCase);
+            if (subMatch.Success && !string.IsNullOrWhiteSpace(subMatch.Groups[1].Value))
+                task.Subscription = subMatch.Groups[1].Value.Trim();
+
+            var creditsMatch = Regex.Match(priorText, @"(?:Credits|AvailableCredits|totalCreditsAvailable)[^\d\r\n]*(\d+)", RegexOptions.IgnoreCase);
+            if (creditsMatch.Success && !string.IsNullOrWhiteSpace(creditsMatch.Groups[1].Value))
+                task.AvailableCredits = creditsMatch.Groups[1].Value.Trim();
+        }
 
         return task;
     }

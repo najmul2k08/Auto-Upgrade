@@ -582,6 +582,9 @@
                                         </DataGridTemplateColumn>
 
                                         <DataGridTextColumn Header="ACCOUNT / EMAIL" Binding="{Binding Email}" Width="165"/>
+                                        <DataGridTextColumn Header="PLAN" Binding="{Binding Plan}" Width="105"/>
+                                        <DataGridTextColumn Header="SUBSCRIPTION" Binding="{Binding Subscription}" Width="110"/>
+                                        <DataGridTextColumn Header="CREDITS" Binding="{Binding AvailableCredits}" Width="90"/>
                                         <DataGridTextColumn Header="CUSTOMER ID" Binding="{Binding UserId}" Width="115"/>
                                         <DataGridTextColumn Header="PURCHASE ID" Binding="{Binding PurchaseId}" Width="120"/>
                                         <DataGridTextColumn Header="PRICE ID" Binding="{Binding PriceId}" Width="120"/>
@@ -831,6 +834,9 @@
                                 </DataGridTemplateColumn>
 
                                 <DataGridTextColumn Header="EMAIL" Binding="{Binding Email}" Width="165"/>
+                                <DataGridTextColumn Header="PLAN" Binding="{Binding Plan}" Width="105"/>
+                                <DataGridTextColumn Header="SUBSCRIPTION" Binding="{Binding Subscription}" Width="110"/>
+                                <DataGridTextColumn Header="CREDITS" Binding="{Binding AvailableCredits}" Width="90"/>
                                 <DataGridTextColumn Header="CUSTOMER ID" Binding="{Binding UserId}" Width="115"/>
                                 <DataGridTextColumn Header="PURCHASE ID" Binding="{Binding PurchaseId}" Width="120"/>
                                 <DataGridTextColumn Header="PRICE ID" Binding="{Binding PriceId}" Width="120"/>

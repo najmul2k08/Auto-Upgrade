@@ -6,6 +6,9 @@ public class SavedResultItem
 {
     public int Id { get; set; }
     public string Email { get; set; } = string.Empty;
+    public string Plan { get; set; } = "-";
+    public string Subscription { get; set; } = "-";
+    public string AvailableCredits { get; set; } = "-";
     public string UserId { get; set; } = string.Empty;
     public string PurchaseId { get; set; } = string.Empty;
     public string PriceId { get; set; } = string.Empty;

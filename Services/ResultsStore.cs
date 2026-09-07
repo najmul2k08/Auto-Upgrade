@@ -37,6 +37,9 @@ public class ResultsStore
             {
                 Id = AllResults.Count + 1,
                 Email = task.Email,
+                Plan = task.Plan,
+                Subscription = task.Subscription,
+                AvailableCredits = task.AvailableCredits,
                 UserId = task.UserId,
                 PurchaseId = task.PurchaseId,
                 PriceId = task.PriceId,
@@ -76,7 +79,7 @@ public class ResultsStore
             };
 
             string path = Path.Combine(dir, fileName);
-            string line = $"[{item.CompletedAt}] [{item.Status}] Email: {item.Email} | CustomerID: {item.UserId} | PurchaseID: {item.PurchaseId} | PriceID: {item.PriceId} | Details: {item.Message} | Proxy: {item.ProxyUsed}";
+            string line = $"[{item.CompletedAt}] [{item.Status}] Email: {item.Email} | Plan: {item.Plan} | Subscription: {item.Subscription} | Credits: {item.AvailableCredits} | CustomerID: {item.UserId} | PurchaseID: {item.PurchaseId} | PriceID: {item.PriceId} | Details: {item.Message} | Proxy: {item.ProxyUsed}";
             File.AppendAllText(path, line + Environment.NewLine);
         }
         catch
@@ -150,10 +153,10 @@ public class ResultsStore
     public string ExportCsv(IEnumerable<SavedResultItem> items)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("ID,CompletedAt,Status,Email,CustomerId,PurchaseId,PriceId,Message,Proxy,SourceFile");
+        sb.AppendLine("ID,CompletedAt,Status,Email,Plan,Subscription,AvailableCredits,CustomerId,PurchaseId,PriceId,Message,Proxy,SourceFile");
         foreach (var it in items)
         {
-            sb.AppendLine($"\"{it.Id}\",\"{it.CompletedAt}\",\"{it.Status}\",\"{it.Email}\",\"{it.UserId}\",\"{it.PurchaseId}\",\"{it.PriceId}\",\"{it.Message.Replace("\"", "\"\"")}\",\"{it.ProxyUsed}\",\"{it.FileName}\"");
+            sb.AppendLine($"\"{it.Id}\",\"{it.CompletedAt}\",\"{it.Status}\",\"{it.Email}\",\"{it.Plan}\",\"{it.Subscription}\",\"{it.AvailableCredits}\",\"{it.UserId}\",\"{it.PurchaseId}\",\"{it.PriceId}\",\"{it.Message.Replace("\"", "\"\"")}\",\"{it.ProxyUsed}\",\"{it.FileName}\"");
         }
         return sb.ToString();
     }
@@ -167,7 +170,7 @@ public class ResultsStore
 
         foreach (var it in items)
         {
-            sb.AppendLine($"[{it.CompletedAt}] [{it.Status.ToUpper()}] #{it.Id} | Email: {it.Email} | CustomerID: {it.UserId}");
+            sb.AppendLine($"[{it.CompletedAt}] [{it.Status.ToUpper()}] #{it.Id} | Email: {it.Email} | Plan: {it.Plan} | Sub: {it.Subscription} | Credits: {it.AvailableCredits} | CustomerID: {it.UserId}");
             sb.AppendLine($"PurchaseID: {it.PurchaseId} | PriceID: {it.PriceId}");
             sb.AppendLine($"Details: {it.Message} | Proxy: {it.ProxyUsed} | File: {it.FileName}");
             sb.AppendLine(new string('-', 70));
