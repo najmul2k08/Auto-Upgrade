@@ -51,6 +51,12 @@ public partial class MainWindow : Window
         SliderThreads.Value = _settings.DefaultThreads;
         TxtThreadCount.Text = $"{_settings.DefaultThreads} Threads";
 
+        if (!string.IsNullOrWhiteSpace(_settings.DefaultProxies))
+        {
+            TxtProxies.Text = _settings.DefaultProxies;
+            AppendLog($"[PROXY] Restored {_proxyManager.Count} saved default proxy item(s).");
+        }
+
         UpdateThemeButtonUi();
         UpdateStats();
         UpdateResultsFilter();
@@ -328,6 +334,46 @@ public partial class MainWindow : Window
         _proxyManager.Clear();
         TxtProxyCount.Text = "0 Loaded";
         AppendLog("[PROXY] Proxies cleared.");
+    }
+
+    private void BtnSaveProxies_Click(object sender, RoutedEventArgs e)
+    {
+        string proxies = TxtProxies.Text.Trim();
+        _settings.DefaultProxies = proxies;
+        _settings.Save();
+
+        if (TxtSettingDefaultProxies != null)
+        {
+            TxtSettingDefaultProxies.Text = proxies;
+        }
+        UpdateSavedProxyCountDisplay();
+
+        int count = _proxyManager.Count;
+        AppendLog($"[PROXY] Saved {count} default proxy item(s) to settings for future sessions.");
+        MessageBox.Show($"Successfully saved {count} proxy item(s) as default.\nThey will be restored automatically on future launches.", "Default Proxies Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void BtnExportProxies_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(TxtProxies.Text))
+        {
+            MessageBox.Show("No proxies to export.", "Empty", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var saveDialog = new SaveFileDialog
+        {
+            Title = "Export Proxy List",
+            Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*",
+            FileName = $"proxies_{DateTime.Now:yyyyMMdd_HHmmss}.txt"
+        };
+
+        if (saveDialog.ShowDialog() == true)
+        {
+            File.WriteAllText(saveDialog.FileName, TxtProxies.Text);
+            AppendLog($"[PROXY] Exported proxy list to {Path.GetFileName(saveDialog.FileName)}");
+            MessageBox.Show($"Exported proxies to:\n{saveDialog.FileName}", "Export Completed", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     #endregion
@@ -676,6 +722,48 @@ public partial class MainWindow : Window
             if (_settings.IsDarkMode) RadioThemeDark.IsChecked = true;
             else RadioThemeLight.IsChecked = true;
         }
+
+        if (TxtSettingDefaultProxies != null)
+        {
+            TxtSettingDefaultProxies.Text = _settings.DefaultProxies;
+        }
+        UpdateSavedProxyCountDisplay();
+    }
+
+    private void UpdateSavedProxyCountDisplay()
+    {
+        if (TxtSettingSavedProxyCount == null) return;
+        if (string.IsNullOrWhiteSpace(_settings.DefaultProxies))
+        {
+            TxtSettingSavedProxyCount.Text = "0 proxy items saved (None)";
+        }
+        else
+        {
+            var temp = new ProxyManager();
+            temp.LoadFromText(_settings.DefaultProxies);
+            TxtSettingSavedProxyCount.Text = $"{temp.Count} valid proxy item(s) saved";
+        }
+    }
+
+    private void BtnSaveCurrentAsDefaultProxy_Click(object sender, RoutedEventArgs e)
+    {
+        BtnSaveProxies_Click(sender, e);
+    }
+
+    private void BtnClearSavedDefaultProxy_Click(object sender, RoutedEventArgs e)
+    {
+        var res = MessageBox.Show("Are you sure you want to remove the saved default proxies from settings?", "Clear Default Proxies", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (res == MessageBoxResult.Yes)
+        {
+            _settings.DefaultProxies = "";
+            _settings.Save();
+            if (TxtSettingDefaultProxies != null)
+            {
+                TxtSettingDefaultProxies.Text = string.Empty;
+            }
+            UpdateSavedProxyCountDisplay();
+            AppendLog("[PROXY] Saved default proxies removed from settings.");
+        }
     }
 
     private void SettingSliderThreads_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -714,6 +802,17 @@ public partial class MainWindow : Window
             _settings.SaveDirectory = string.IsNullOrWhiteSpace(TxtSettingSaveDir.Text) ? _settings.SaveDirectory : TxtSettingSaveDir.Text.Trim();
             _settings.AutoScrollLog = ChkAutoScrollLog.IsChecked == true;
 
+            if (TxtSettingDefaultProxies != null)
+            {
+                string newProxies = TxtSettingDefaultProxies.Text.Trim();
+                _settings.DefaultProxies = newProxies;
+                if (string.IsNullOrWhiteSpace(TxtProxies.Text) && !string.IsNullOrWhiteSpace(newProxies))
+                {
+                    TxtProxies.Text = newProxies;
+                }
+            }
+            UpdateSavedProxyCountDisplay();
+
             bool isDark = RadioThemeDark?.IsChecked == true;
             if (_settings.IsDarkMode != isDark)
             {
@@ -750,6 +849,7 @@ public partial class MainWindow : Window
             _settings.SaveDirectory = def.SaveDirectory;
             _settings.AutoScrollLog = def.AutoScrollLog;
             _settings.IsDarkMode = def.IsDarkMode;
+            _settings.DefaultProxies = def.DefaultProxies;
             _settings.Save();
 
             ThemeManager.SetTheme(this.Resources, _settings.IsDarkMode);

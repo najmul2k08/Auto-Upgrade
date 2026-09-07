@@ -411,12 +411,46 @@
                                              TextChanged="TxtProxies_TextChanged"/>
 
                                     <Grid Grid.Row="2" Margin="0,6,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Content="Load File" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,4,0" Click="BtnLoadProxies_Click"/>
-                                        <Button Grid.Column="1" Content="Clear" Style="{StaticResource WiseSecondaryButton}" Margin="4,0,0,0" Click="BtnClearProxies_Click"/>
+                                        <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,3,3" Padding="6,6" Click="BtnLoadProxies_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconUpload}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Load File" FontSize="11"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Row="0" Grid.Column="1" x:Name="BtnSaveProxies" Style="{StaticResource WiseSecondaryButton}" Margin="3,0,0,3" Padding="6,6" Click="BtnSaveProxies_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconSave}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Save Default" FontSize="11"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Row="1" Grid.Column="0" Style="{StaticResource WiseSecondaryButton}" Margin="0,3,3,0" Padding="6,6" Click="BtnExportProxies_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconFileText}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Export File" FontSize="11"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource WiseSecondaryButton}" Margin="3,3,0,0" Padding="6,6" Click="BtnClearProxies_Click">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="11" Height="11" Margin="0,0,5,0">
+                                                    <Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                                </Viewbox>
+                                                <TextBlock Text="Clear" FontSize="11"/>
+                                            </StackPanel>
+                                        </Button>
                                     </Grid>
                                 </Grid>
 
@@ -865,6 +899,45 @@
                                     </StackPanel>
                                     <TextBox Grid.Column="1" x:Name="TxtSettingUserAgent" Background="{DynamicResource ThemeInputBg}" Foreground="{DynamicResource ThemeInputText}" BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1" Padding="8,5" FontFamily="Cascadia Code, Consolas" FontSize="11"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Saved Proxies Persistence Card -->
+                        <Border Style="{StaticResource WiseCard}" Padding="24" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,8,0">
+                                        <Path Data="{StaticResource IconClipboard}" Stroke="{DynamicResource ThemeTextPrimary}" StrokeThickness="2"/>
+                                    </Viewbox>
+                                    <TextBlock Text="Default Proxies &amp; Network Persistence" FontSize="16" FontWeight="Black" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                </StackPanel>
+                                <TextBlock Text="Save default proxies so they are automatically loaded every time you open the app." FontSize="12" Foreground="{DynamicResource ThemeTextMuted}" Margin="0,0,0,18"/>
+
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Saved Default Proxies" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource ThemeTextPrimary}"/>
+                                        <TextBlock x:Name="TxtSettingSavedProxyCount" Text="0 proxy item(s) saved" FontSize="11" Foreground="{DynamicResource ThemeTextMuted}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="Saved to settings.json and restored on startup." FontSize="12" Foreground="{DynamicResource ThemeTextSecondary}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                        <Button Content="Save Current as Default" Style="{StaticResource WiseSecondaryButton}" Margin="0,0,8,0" Click="BtnSaveCurrentAsDefaultProxy_Click"/>
+                                        <Button Content="Clear Default Proxies" Style="{StaticResource WiseSecondaryButton}" Click="BtnClearSavedDefaultProxy_Click"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Default Proxies Editor Box in Settings -->
+                                <TextBlock Text="Edit Default Proxies (host:port:user:pass)" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource ThemeTextPrimary}" Margin="0,0,0,6"/>
+                                <TextBox x:Name="TxtSettingDefaultProxies" Height="100"
+                                         Background="{DynamicResource ThemeInputBg}" Foreground="{DynamicResource ThemeInputText}"
+                                         BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1"
+                                         AcceptsReturn="True" TextWrapping="NoWrap"
+                                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                         FontFamily="Cascadia Code, Consolas" FontSize="11" Padding="8"/>
                             </StackPanel>
                         </Border>
 
