@@ -45,3 +45,4 @@ The compiled standalone executable will be located in the `publish/` directory.
 ## 🔒 Security
 - All sensitive tokens and local logs are excluded from source control via `.gitignore`.
 - Direct execution without proxies is blocked to prevent exposing local IP addresses.
+
