@@ -101,15 +101,15 @@ public class MagnificApiClient
                     task.Status = "Error: user_id missing";
                     task.StatusType = TaskStatusType.Error;
                     task.Message = "Could not find x-session-user-id header or valid token customer ID.";
-                    log($"[{task.Id}] ❌ Error: customerId not found.");
+                    log($"[{task.Id}] [ERROR] Error: customerId not found.");
                     return;
                 }
 
                 log($"[{task.Id}] Got user_id: {task.UserId}");
             }
 
-            // Capture initial wallet info (Plan, Subscription, Credits)
-            await FetchWalletInfoAsync(client, task, cookieHeader, log, cancellationToken);
+            // Capture initial wallet info (Plan, Subscription, Credits) via live API
+            await FetchWalletInfoAsync(task, proxy, cookieHeader, log, cancellationToken);
 
             // -------------------------------------------------------------
             // STEP 2: GET https://www.magnific.com/user/api/my-subscriptions
@@ -138,12 +138,30 @@ public class MagnificApiClient
                     task.Status = "No Active Subscription";
                     task.StatusType = TaskStatusType.Declined;
                     task.Message = "Account has no active subscription (Free account).";
-                    log($"[{task.Id}] ⚠️ Account has no active subscription (purchaseId not found).");
+                    log($"[{task.Id}] [DECLINED] Account has no active subscription (purchaseId not found).");
                     return;
                 }
 
                 task.PurchaseId = pMatch.Groups[1].Value;
                 log($"[{task.Id}] Got purchaseId: {task.PurchaseId}");
+
+                // Also parse Plan and Subscription from my-subscriptions response if not yet captured
+                if (task.Plan == "-" || string.IsNullOrEmpty(task.Plan))
+                {
+                    var planMatch = PlanRegex.Match(body2);
+                    if (planMatch.Success && !string.IsNullOrWhiteSpace(planMatch.Groups[1].Value))
+                    {
+                        task.Plan = planMatch.Groups[1].Value.Trim();
+                    }
+                }
+                if (task.Subscription == "-" || string.IsNullOrEmpty(task.Subscription))
+                {
+                    var freqMatch = FrequencyRegex.Match(body2);
+                    if (freqMatch.Success && !string.IsNullOrWhiteSpace(freqMatch.Groups[1].Value))
+                    {
+                        task.Subscription = freqMatch.Groups[1].Value.Trim();
+                    }
+                }
             }
 
             // -------------------------------------------------------------
@@ -198,7 +216,7 @@ public class MagnificApiClient
                 task.Status = "Error: priceId missing";
                 task.StatusType = TaskStatusType.Error;
                 task.Message = $"priceId not found in response. HTTP {lastStep3Code}: {TrimSnippet(body3)}";
-                log($"[{task.Id}] ❌ Error: priceId missing. HTTP {lastStep3Code}. Snippet: {TrimSnippet(body3)}");
+                log($"[{task.Id}] [ERROR] Error: priceId missing. HTTP {lastStep3Code}. Snippet: {TrimSnippet(body3)}");
                 return;
             }
 
@@ -250,7 +268,7 @@ public class MagnificApiClient
                         task.Status = $"Error: HTTP {statusCode4}";
                         task.StatusType = TaskStatusType.Error;
                         task.Message = $"HTTP {statusCode4} after {maxStep4Retries} retries: {TrimSnippet(body4)}";
-                        log($"[{task.Id}] ❌ Exceeded {maxStep4Retries} retries (HTTP {statusCode4}): {TrimSnippet(body4)}");
+                        log($"[{task.Id}] [ERROR] Exceeded {maxStep4Retries} retries (HTTP {statusCode4}): {TrimSnippet(body4)}");
                         break;
                     }
                 }
@@ -274,7 +292,7 @@ public class MagnificApiClient
                     log($"[{task.Id}] [APPROVED] Status: Payment Approved for {task.Email ?? task.UserId}!");
 
                     // Refresh wallet info to capture updated plan & credits after upgrade
-                    await FetchWalletInfoAsync(client, task, cookieHeader, log, cancellationToken);
+                    await FetchWalletInfoAsync(task, proxy, cookieHeader, log, cancellationToken);
                     break;
                 }
                 else
@@ -307,16 +325,41 @@ public class MagnificApiClient
         }
     }
 
-    public static async Task FetchWalletInfoAsync(HttpClient client, AccountTask task, string cookieHeader, Action<string> log, CancellationToken cancellationToken)
+    public static async Task FetchWalletInfoAsync(AccountTask task, ProxyItem? proxy, string cookieHeader, Action<string> log, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(task.UserId)) return;
 
+        log($"[{task.Id}] [WALLET API] Querying live wallet API for {task.UserId}...");
+
         try
         {
+            var handler = new SocketsHttpHandler
+            {
+                AutomaticDecompression = DecompressionMethods.All,
+                AllowAutoRedirect = false,
+                ConnectTimeout = TimeSpan.FromSeconds(20),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+            };
+
+            if (proxy != null)
+            {
+                handler.UseProxy = true;
+                handler.Proxy = proxy.ToWebProxy();
+            }
+            else
+            {
+                handler.UseProxy = false;
+            }
+
+            using var walletClient = new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromSeconds(25)
+            };
+
             string url = $"https://www.magnific.com/api/user/wallet/{task.UserId}";
             string? responseBody = null;
 
-            // Attempt 1: As configured with Host: www.freepik.com
+            // Attempt 1: As configured in OpenBullet (GET https://www.magnific.com/api/user/wallet/{id}, Host: www.freepik.com, AutoRedirect=FALSE)
             try
             {
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
@@ -328,12 +371,40 @@ public class MagnificApiClient
                 req.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
                 req.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
                 req.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+                req.Headers.TryAddWithoutValidation("Priority", "u=4");
+                req.Headers.TryAddWithoutValidation("Te", "trailers");
                 req.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
 
-                using var res = await client.SendAsync(req, cancellationToken);
+                using var res = await walletClient.SendAsync(req, cancellationToken);
+                int statusCode = (int)res.StatusCode;
+
                 if (res.IsSuccessStatusCode)
                 {
                     responseBody = await res.Content.ReadAsStringAsync(cancellationToken);
+                }
+                else if (statusCode is 301 or 302 or 307 or 308)
+                {
+                    var location = res.Headers.Location;
+                    if (location != null)
+                    {
+                        var redirectUri = location.IsAbsoluteUri ? location : new Uri(new Uri(url), location);
+                        using var reqRedirect = new HttpRequestMessage(HttpMethod.Get, redirectUri);
+                        reqRedirect.Headers.Host = redirectUri.Host;
+                        reqRedirect.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+                        reqRedirect.Headers.TryAddWithoutValidation("Accept", "*/*");
+                        reqRedirect.Headers.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.5");
+                        reqRedirect.Headers.TryAddWithoutValidation("Referer", "https://www.freepik.com/?log-in=email");
+                        reqRedirect.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+                        reqRedirect.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+                        reqRedirect.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
+                        reqRedirect.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
+
+                        using var resRedirect = await walletClient.SendAsync(reqRedirect, cancellationToken);
+                        if (resRedirect.IsSuccessStatusCode)
+                        {
+                            responseBody = await resRedirect.Content.ReadAsStringAsync(cancellationToken);
+                        }
+                    }
                 }
             }
             catch
@@ -341,7 +412,7 @@ public class MagnificApiClient
                 // Fallback will be attempted
             }
 
-            // Attempt 2: Fallback to www.magnific.com host
+            // Attempt 2: Fallback with Host: www.magnific.com
             if (string.IsNullOrEmpty(responseBody))
             {
                 try
@@ -357,7 +428,7 @@ public class MagnificApiClient
                     req2.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
                     req2.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
 
-                    using var res2 = await client.SendAsync(req2, cancellationToken);
+                    using var res2 = await walletClient.SendAsync(req2, cancellationToken);
                     if (res2.IsSuccessStatusCode)
                     {
                         responseBody = await res2.Content.ReadAsStringAsync(cancellationToken);
@@ -386,7 +457,7 @@ public class MagnificApiClient
                     req3.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "same-origin");
                     req3.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
 
-                    using var res3 = await client.SendAsync(req3, cancellationToken);
+                    using var res3 = await walletClient.SendAsync(req3, cancellationToken);
                     if (res3.IsSuccessStatusCode)
                     {
                         responseBody = await res3.Content.ReadAsStringAsync(cancellationToken);
@@ -402,10 +473,14 @@ public class MagnificApiClient
             {
                 ParseWalletResponse(responseBody, task, log);
             }
+            else
+            {
+                log($"[{task.Id}] [WALLET API] Notice: Live wallet API query returned no response data for {task.UserId}.");
+            }
         }
         catch (Exception ex)
         {
-            log($"[{task.Id}] Notice: Wallet lookup encountered error: {ex.Message}");
+            log($"[{task.Id}] [WALLET API] Notice: Wallet lookup encountered error: {ex.Message}");
         }
     }
 
@@ -452,12 +527,12 @@ public class MagnificApiClient
 
             if (capturedAny)
             {
-                log($"[{task.Id}] [WALLET] Plan: {task.Plan} | Subscription: {task.Subscription} | Credits: {task.AvailableCredits}");
+                log($"[{task.Id}] [WALLET API] Live captured -> Plan: {task.Plan} | Subscription: {task.Subscription} | Credits: {task.AvailableCredits}");
             }
         }
         catch (Exception ex)
         {
-            log($"[{task.Id}] Error parsing wallet data: {ex.Message}");
+            log($"[{task.Id}] [WALLET API] Error parsing wallet data: {ex.Message}");
         }
     }
 
