@@ -143,12 +143,21 @@ public class MagnificApiClient
             // -------------------------------------------------------------
             // STEP 3: GET https://www.magnific.com/user/api/my-subscriptions/upgrade-product
             // -------------------------------------------------------------
+            // -------------------------------------------------------------
+            // STEP 3: GET https://www.magnific.com/user/api/my-subscriptions/upgrade-product
+            // -------------------------------------------------------------
             task.Status = "Step 3/4: Getting Price ID...";
             string upgradeUrl = $"https://www.magnific.com/user/api/my-subscriptions/upgrade-product?customerId={Uri.EscapeDataString(task.UserId)}&purchaseId={Uri.EscapeDataString(task.PurchaseId)}&seats=2";
             log($"[{task.Id}] Step 3: GET {upgradeUrl}");
 
-            using (var req3 = new HttpRequestMessage(HttpMethod.Get, upgradeUrl))
+            int step3Retries = 0;
+            string body3 = string.Empty;
+            Match priceMatch = Match.Empty;
+            int lastStep3Code = 200;
+
+            while (step3Retries < 5)
             {
+                using var req3 = new HttpRequestMessage(HttpMethod.Get, upgradeUrl);
                 req3.Headers.Host = "www.magnific.com";
                 req3.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
                 req3.Headers.TryAddWithoutValidation("Accept", "*/*");
@@ -160,21 +169,35 @@ public class MagnificApiClient
                 req3.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
 
                 using var res3 = await client.SendAsync(req3, cancellationToken);
-                string body3 = await res3.Content.ReadAsStringAsync(cancellationToken);
+                body3 = await res3.Content.ReadAsStringAsync(cancellationToken);
+                lastStep3Code = (int)res3.StatusCode;
 
-                var priceMatch = PriceIdRegex.Match(body3);
-                if (!priceMatch.Success)
+                if (lastStep3Code >= 500 && lastStep3Code <= 599)
                 {
-                    task.Status = "Error: priceId missing";
-                    task.StatusType = TaskStatusType.Error;
-                    task.Message = $"priceId not found in response. HTTP {(int)res3.StatusCode}";
-                    log($"[{task.Id}] ❌ Error: priceId missing. Snippet: {TrimSnippet(body3)}");
-                    return;
+                    step3Retries++;
+                    if (step3Retries < 5)
+                    {
+                        log($"[{task.Id}] [RETRY] Step 3 received HTTP {lastStep3Code}. Retrying ({step3Retries}/5) in 1.5s...");
+                        await Task.Delay(1500, cancellationToken);
+                        continue;
+                    }
                 }
 
-                task.PriceId = priceMatch.Groups[1].Value;
-                log($"[{task.Id}] Got priceId: {task.PriceId}");
+                priceMatch = PriceIdRegex.Match(body3);
+                break;
             }
+
+            if (!priceMatch.Success)
+            {
+                task.Status = "Error: priceId missing";
+                task.StatusType = TaskStatusType.Error;
+                task.Message = $"priceId not found in response. HTTP {lastStep3Code}: {TrimSnippet(body3)}";
+                log($"[{task.Id}] ❌ Error: priceId missing. HTTP {lastStep3Code}. Snippet: {TrimSnippet(body3)}");
+                return;
+            }
+
+            task.PriceId = priceMatch.Groups[1].Value;
+            log($"[{task.Id}] Got priceId: {task.PriceId}");
 
             // -------------------------------------------------------------
             // STEP 4: PUT https://www.magnific.com/user/api/my-subscriptions/upgrade-product/purchase
@@ -184,8 +207,12 @@ public class MagnificApiClient
 
             string purchasePayload = $"{{\"purchaseId\":\"{task.PurchaseId}\",\"priceId\":\"{task.PriceId}\",\"priceSeats\":1,\"isTeams\":false,\"canUpgradeOrganization\":false,\"isUpgradeToTeam\":false,\"metaData\":{{\"origin_cta\":\"pricing_upgrade\"}}}}";
 
-            using (var req4 = new HttpRequestMessage(HttpMethod.Put, "https://www.magnific.com/user/api/my-subscriptions/upgrade-product/purchase"))
+            const int maxStep4Retries = 5;
+            int step4Retries = 0;
+
+            while (step4Retries < maxStep4Retries)
             {
+                using var req4 = new HttpRequestMessage(HttpMethod.Put, "https://www.magnific.com/user/api/my-subscriptions/upgrade-product/purchase");
                 req4.Headers.Host = "www.magnific.com";
                 req4.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
                 req4.Headers.TryAddWithoutValidation("Accept", "*/*");
@@ -196,11 +223,31 @@ public class MagnificApiClient
                 req4.Headers.TryAddWithoutValidation("sec-fetch-mode", "cors");
                 req4.Headers.TryAddWithoutValidation("sec-fetch-dest", "empty");
                 req4.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
-
                 req4.Content = new StringContent(purchasePayload, Encoding.UTF8, "application/json");
 
                 using var res4 = await client.SendAsync(req4, cancellationToken);
                 string body4 = await res4.Content.ReadAsStringAsync(cancellationToken);
+                int statusCode4 = (int)res4.StatusCode;
+
+                // Handle transient HTTP 500 / 5xx server errors with up to 5 retries
+                if (statusCode4 >= 500 && statusCode4 <= 599)
+                {
+                    step4Retries++;
+                    if (step4Retries < maxStep4Retries)
+                    {
+                        log($"[{task.Id}] [RETRY] Step 4 received HTTP {statusCode4}. Retrying ({step4Retries}/{maxStep4Retries}) in 1.5s...");
+                        await Task.Delay(1500, cancellationToken);
+                        continue;
+                    }
+                    else
+                    {
+                        task.Status = $"Error: HTTP {statusCode4}";
+                        task.StatusType = TaskStatusType.Error;
+                        task.Message = $"HTTP {statusCode4} after {maxStep4Retries} retries: {TrimSnippet(body4)}";
+                        log($"[{task.Id}] ❌ Exceeded {maxStep4Retries} retries (HTTP {statusCode4}): {TrimSnippet(body4)}");
+                        break;
+                    }
+                }
 
                 // KEYCHECK EVALUATION:
                 // IF "<SOURCE>" Contains "PAYMENT_DECLINED" -> Payment Declined
@@ -211,20 +258,23 @@ public class MagnificApiClient
                     task.StatusType = TaskStatusType.Declined;
                     task.Message = "PAYMENT_DECLINED";
                     log($"[{task.Id}] ⚠️ Status: Payment Declined for {task.Email ?? task.UserId}");
+                    break;
                 }
-                else if (res4.IsSuccessStatusCode || (int)res4.StatusCode == 204 || (int)res4.StatusCode == 200)
+                else if (res4.IsSuccessStatusCode || statusCode4 == 204 || statusCode4 == 200)
                 {
                     task.Status = "Payment Approved";
                     task.StatusType = TaskStatusType.Approved;
-                    task.Message = $"Purchase successful (HTTP {(int)res4.StatusCode})";
+                    task.Message = $"Purchase successful (HTTP {statusCode4})";
                     log($"[{task.Id}] ✅ Status: Payment Approved for {task.Email ?? task.UserId}!");
+                    break;
                 }
                 else
                 {
-                    task.Status = $"Error: HTTP {(int)res4.StatusCode}";
+                    task.Status = $"Error: HTTP {statusCode4}";
                     task.StatusType = TaskStatusType.Error;
                     task.Message = TrimSnippet(body4);
-                    log($"[{task.Id}] ❌ Unexpected response HTTP {(int)res4.StatusCode}: {TrimSnippet(body4)}");
+                    log($"[{task.Id}] ❌ Unexpected response HTTP {statusCode4}: {TrimSnippet(body4)}");
+                    break;
                 }
             }
         }
